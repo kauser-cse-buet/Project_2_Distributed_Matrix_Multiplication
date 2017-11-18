@@ -21,6 +21,9 @@ public class Worker {
 	DataOutputStream dosLeft;
 	DataInputStream disRight;
 
+	DataOutputStream dosUp;
+	DataInputStream disDown;
+
 	public Worker(int nodeNum, int localPort) {
 		this.nodeNum = nodeNum;
 		this.localPort = localPort;
@@ -41,15 +44,47 @@ public class Worker {
 			c = new int[m][m];
 			String ipLeft = disCoor.readUTF();		//left block connection info
 			int portLeft = disCoor.readInt();
+			System.out.println("portLeft" + portLeft);
+
 			String ipRight = disCoor.readUTF();		//right block connection info 
 			int portRight = disCoor.readInt();
-			if (nodeNum%2==0) {		// Even # worker connecting manner
-				dosLeft = conn.connect2write(ipLeft, portLeft);
-				disRight = conn.accept2read();	 
-			} else {				// Odd # worker connecting manner
-				disRight = conn.accept2read();  
-				dosLeft = conn.connect2write(ipRight, portRight);
-			}
+			System.out.println("portRight" + portRight);
+
+			String ipUp = disCoor.readUTF();		//up block connection info
+			int portUp = disCoor.readInt();
+
+			System.out.println("port up" + portUp);
+
+			String ipDown = disCoor.readUTF();		//down block connection info
+			int portDown = disCoor.readInt();
+
+			System.out.println("port down" + portDown);
+
+//			if (nodeNum%2==0) {		// Even # worker connecting manner
+//				dosLeft = conn.connect2write(ipLeft, portLeft);
+//				disRight = conn.accept2read();
+//				dosUp = conn.connect2write(ipUp, portUp);
+//				disDown = conn.accept2read();
+//			} else {				// Odd # worker connecting manner
+//				disRight = conn.accept2read();
+//				dosLeft = conn.connect2write(ipRight, portRight);
+//				disDown = conn.accept2read();
+//				dosUp = conn.connect2write(ipDown, portDown);
+//			}
+
+			dosLeft = conn.connect2write(ipLeft, portLeft);
+			disRight = conn.accept2read();
+			dosUp = conn.connect2write(ipUp, portUp);
+			disDown = conn.accept2read();
+
+//			if(nodeNum % 2 == 0){
+//				dosUp = conn.connect2write(ipUp, portUp);
+//				disDown = conn.accept2read();
+//			}
+//			else {				// Odd # worker connecting manner
+//				disDown = conn.accept2read();
+//				dosUp = conn.connect2write(ipDown, portDown);
+//			}
 		} catch (IOException ioe) {
 			ioe.printStackTrace();
 		} 
@@ -57,7 +92,8 @@ public class Worker {
 	}
 
 	void compute() {
-		// get the block from coordinator 
+		// get the block from coordinator
+		// recieve matrix A
 		for (int i = 0; i < m; i++) {
 			for (int j = 0; j <m; j++) {
 				try {
@@ -68,65 +104,152 @@ public class Worker {
 				}
 			}
 		}
+		System.out.println("Matrix A: ");
 		MatrixMultiple.displayMatrix(a);
-		// shift matrix a toward left 
-		int[] tempIn = new int[m];
-		int[] tempOut = new int[m];
-		if (nodeNum%2==0) { 		// Even # worker shifting procedure 
-			for (int i = 0; i < m; i++) {
+		System.out.println("-----------------");
+
+		// recieve matrix B
+		for (int i = 0; i < m; i++) {
+			for (int j = 0; j <m; j++) {
 				try {
-					dosLeft.writeInt(a[i][0]);
+					b[i][j] = disCoor.readInt();
 				} catch (IOException ioe) {
-					System.out.println("error in sending to left, row=" + i);
+					System.out.println("error: " + i + ", " + j);
 					ioe.printStackTrace();
 				}
 			}
-			// local shift
-			for (int i = 0; i < m; i++) {
-				for (int j = 1; j < m; j++) {
-					a[i][j-1] = a[i][j];
-				}
-			} 
-			// receive the rightmost column
-			for (int i = 0; i < m; i++) {
+		}
+		System.out.println("Matrix b: ");
+		MatrixMultiple.displayMatrix(b);
+		System.out.println("-----------------");
+
+		c = MatrixMultiple.multiplyMatrixCellWise(a, b);
+		System.out.println("Matrix c: ");
+		MatrixMultiple.displayMatrix(c, 6);
+		System.out.println("-----------------");
+
+
+//		send matrix A to left
+		for(int i = 0; i < m; i++){
+			for(int j = 0; j < m; j++){
 				try {
- 					a[i][m-1] = disRight.readInt();
-				} catch (IOException ioe) {
-					System.out.println("error in receiving from right, row=" + i);
-					ioe.printStackTrace();
+					dosLeft.writeInt(a[i][j]);
+				} catch (IOException e) {
+					e.printStackTrace();
 				}
 			}
-		} else { 					// Odd # worker shifting procedure
-			for (int i = 0; i < m; i++) {		// receive a column from right
+		}
+
+		System.out.println("Matrix A sent to left: Left shift");
+
+		for(int i = 0; i < m; i++){
+			for(int j = 0; j < m; j++){
 				try {
-					tempIn[i] = disRight.readInt();
-				} catch (IOException ioe) {
-					System.out.println("error in receiving from right, row=" + i);
-					ioe.printStackTrace();
-				}
-			} 
-			for (int i = 0; i < m; i++) {		// local shift
-				tempOut[i] = a[i][0];
-			} 
-			for (int i = 0; i < m; i++) {
-				for (int j = 1; j < m; j++) {
-					a[i][j-1] = a[i][j];
-				}
-			} 
-			for (int i = 0; i < m; i++) {
-				a[i][m-1] = tempIn[i];
-			} 
-			for (int i = 0; i < m; i++) {		// send leftmost column to left node
-				try {
-					dosLeft.writeInt(tempOut[i]);
-				} catch (IOException ioe) {
-					System.out.println("error in sending left, row=" + i);
-					ioe.printStackTrace();
+					a[i][j] = disRight.readInt();
+				} catch (IOException e) {
+					e.printStackTrace();
 				}
 			}
-		} 
-		System.out.println("Shifted matrix"); 
+		}
+
+		System.out.println("Matrix A recieved from right.");
 		MatrixMultiple.displayMatrix(a);
+		System.out.println("------------------------------");
+
+
+//		send message to up
+		for(int i = 0; i < m; i++){
+			for(int j = 0; j < m; j++){
+				try {
+					dosUp.writeInt(b[i][j]);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+
+		System.out.println("Matrix B sent to Up: shift Up");
+
+		for(int i = 0; i < m; i++){
+			for(int j = 0; j < m; j++){
+				try {
+					b[i][j] = disDown.readInt();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+
+		System.out.println("Matrix B recieved from down.");
+		MatrixMultiple.displayMatrix(b);
+		System.out.println("------------------------------");
+
+		int[][] temp = MatrixMultiple.multiplyMatrixCellWise(a, b);
+		c = MatrixMultiple.addMatrixCellWise(c, temp);
+		System.out.println("Updated c, by c =  c + a * b .");
+		MatrixMultiple.displayMatrix(c, 5);
+		System.out.println("------------------------------");
+
+
+
+//		// shift matrix a toward left
+//		int[] tempIn = new int[m];
+//		int[] tempOut = new int[m];
+//		if (nodeNum%2==0) { 		// Even # worker shifting procedure
+//			for (int i = 0; i < m; i++) {
+//				try {
+//					dosLeft.writeInt(a[i][0]);
+//				} catch (IOException ioe) {
+//					System.out.println("error in sending to left, row=" + i);
+//					ioe.printStackTrace();
+//				}
+//			}
+//			// local shift
+//			for (int i = 0; i < m; i++) {
+//				for (int j = 1; j < m; j++) {
+//					a[i][j-1] = a[i][j];
+//				}
+//			}
+//			// receive the rightmost column
+//			for (int i = 0; i < m; i++) {
+//				try {
+// 					a[i][m-1] = disRight.readInt();
+//				} catch (IOException ioe) {
+//					System.out.println("error in receiving from right, row=" + i);
+//					ioe.printStackTrace();
+//				}
+//			}
+//		} else { 					// Odd # worker shifting procedure
+//			for (int i = 0; i < m; i++) {		// receive a column from right
+//				try {
+//					tempIn[i] = disRight.readInt();
+//				} catch (IOException ioe) {
+//					System.out.println("error in receiving from right, row=" + i);
+//					ioe.printStackTrace();
+//				}
+//			}
+//			for (int i = 0; i < m; i++) {		// local shift
+//				tempOut[i] = a[i][0];
+//			}
+//			for (int i = 0; i < m; i++) {
+//				for (int j = 1; j < m; j++) {
+//					a[i][j-1] = a[i][j];
+//				}
+//			}
+//			for (int i = 0; i < m; i++) {
+//				a[i][m-1] = tempIn[i];
+//			}
+//			for (int i = 0; i < m; i++) {		// send leftmost column to left node
+//				try {
+//					dosLeft.writeInt(tempOut[i]);
+//				} catch (IOException ioe) {
+//					System.out.println("error in sending left, row=" + i);
+//					ioe.printStackTrace();
+//				}
+//			}
+//		}
+//		System.out.println("Shifted matrix");
+//		MatrixMultiple.displayMatrix(a);
 		// shift b up omitted ...
 	}
 

@@ -56,6 +56,7 @@ public class Coordinator {
 			for (int i=0; i < sqrt_m; i++) {
 				for (int j = 0; j < sqrt_m; j++){
 					Node currentNode = nodeArray[i][j];
+
 					Node leftNode = Node.getLeftNode(nodeArray, i, j);
 					currentNode.dosWorker.writeUTF(leftNode.ip); 	// left worker's ip
 					currentNode.dosWorker.writeInt(leftNode.port);
@@ -64,6 +65,16 @@ public class Coordinator {
 
 					currentNode.dosWorker.writeUTF(rightNode.ip); 	// right worker's ip
 					currentNode.dosWorker.writeInt(rightNode.port);
+
+
+					Node upNode = Node.getUpNode(nodeArray, i, j);
+					currentNode.dosWorker.writeUTF(upNode.ip); 	// left worker's ip
+					currentNode.dosWorker.writeInt(upNode.port);
+
+					Node downNode = Node.getDownNode(nodeArray, i, j);
+
+					currentNode.dosWorker.writeUTF(downNode.ip); 	// right worker's ip
+					currentNode.dosWorker.writeInt(downNode.port);
 				}
 			}
 		} catch (IOException ioe) { 
@@ -73,16 +84,44 @@ public class Coordinator {
 	}
 	
 	void distribute(int numNodes) { 
-		a = MatrixMultiple.createDisplayMatrix(dim); 
+		a = MatrixMultiple.createDisplayMatrix(dim);
+		b = MatrixMultiple.createDisplayMatrix(dim);
+
+		System.out.println("Matrix A: Before shift left");
 		MatrixMultiple.displayMatrix(a);
+		System.out.println("-------------------------");
+		int[][] aShiftedLeftIncreasingly = MatrixMultiple.shiftLeftIncreasingly(a);
+		MatrixMultiple.displayMatrix(aShiftedLeftIncreasingly);
+
+		System.out.println("Matrix B: Before shift left");
+		MatrixMultiple.displayMatrix(b);
+		System.out.println("-------------------------");
+		int[][] bShiftedUpColumnIncreasingly = MatrixMultiple.shiftUpColumnIncreasingly(b);
+
+		MatrixMultiple.displayMatrix(bShiftedUpColumnIncreasingly);
+		System.out.println("-------------------------");
+
 		for(int i = 0; i < nodeArray.length; i++){
 			for (int j = 0; j < nodeArray.length; j++){
 				Node currentNode = nodeArray[i][j];
 
+//				Send matrix A
 				for (int a_i = currentNode.iStart; a_i <= currentNode.iEnd; a_i++){
 					for(int a_j = currentNode.jStart; a_j <= currentNode.jEnd; a_j++){
 						try {
-							currentNode.dosWorker.writeInt(a[a_i][a_j]);
+							currentNode.dosWorker.writeInt(aShiftedLeftIncreasingly[a_i][a_j]);
+						} catch (IOException ioe) {
+							System.out.println("error in distribute: " + i + ", " + j);
+							ioe.printStackTrace();
+						}
+					}
+				}
+
+				//				Send matrix B
+				for (int a_i = currentNode.iStart; a_i <= currentNode.iEnd; a_i++){
+					for(int a_j = currentNode.jStart; a_j <= currentNode.jEnd; a_j++){
+						try {
+							currentNode.dosWorker.writeInt(bShiftedUpColumnIncreasingly[a_i][a_j]);
 						} catch (IOException ioe) {
 							System.out.println("error in distribute: " + i + ", " + j);
 							ioe.printStackTrace();

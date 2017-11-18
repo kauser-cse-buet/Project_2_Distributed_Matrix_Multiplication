@@ -137,12 +137,39 @@ public class Node {
 //        System.out.println();
 //        Node.getLeftNode(nodeArray, 1, 1).display();
 
-        Node.getRightNode(nodeArray, 0, 0).display();
+//        Node.getRightNode(nodeArray, 0, 0).display();
+//        System.out.println();
+//        Node.getRightNode(nodeArray, 0, 1).display();
+//        System.out.println();
+//        Node.getRightNode(nodeArray, 1, 0).display();
+//        System.out.println();
+//        Node.getRightNode(nodeArray, 1, 1).display();
+
+        Node.getDownNode(nodeArray, 0, 0).display();
         System.out.println();
-        Node.getRightNode(nodeArray, 0, 1).display();
+        Node.getDownNode(nodeArray, 0, 1).display();
         System.out.println();
-        Node.getRightNode(nodeArray, 1, 0).display();
+        Node.getDownNode(nodeArray, 1, 0).display();
         System.out.println();
-        Node.getRightNode(nodeArray, 1, 1).display();
+        Node.getDownNode(nodeArray, 1, 1).display();
+    }
+
+    public static Node getDownNode(Node[][] nodeArray, int i, int j) {
+        if(i < nodeArray.length && j < nodeArray[0].length){
+            int downI = -1;
+            int downJ = j;
+            if(i == nodeArray.length - 1){
+                downI = 0;
+            }
+            else{
+                downI = i + 1;
+            }
+
+            return nodeArray[downI][downJ];
+        }
+        else{
+            System.out.println("i > nodeArray.length or j > nodeArray[0].length");
+            return null;
+        }
     }
 }
