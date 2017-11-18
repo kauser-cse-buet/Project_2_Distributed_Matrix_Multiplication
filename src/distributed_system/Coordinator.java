@@ -51,6 +51,7 @@ public class Coordinator {
 					currentNode.dosWorker = dio.getDos(); 	//the stream to worker ID
 
 					currentNode.dosWorker.writeInt(m); 		//assign matrix dimension (m), where m = m/ sqrt(num of nodes)
+					currentNode.dosWorker.writeInt(dim); 		//assign actual matrix dimension (dm).
 				}
 			}
 			for (int i=0; i < sqrt_m; i++) {
@@ -77,7 +78,7 @@ public class Coordinator {
 					currentNode.dosWorker.writeInt(downNode.port);
 				}
 			}
-		} catch (IOException ioe) { 
+		} catch (IOException ioe) {
 			System.out.println("error: Coordinator assigning neighbor infor.");  
 			ioe.printStackTrace(); 
 		} 
@@ -130,6 +131,8 @@ public class Coordinator {
 				}
 			}
 		}
+
+
 	}
 	
 	public static void main(String[] args) { 
@@ -142,7 +145,39 @@ public class Coordinator {
 		Coordinator coor = new Coordinator(matrixDim, numNodes);
 		coor.configurate(coordinator_port_num);
 		coor.distribute(numNodes);
+
 		try {Thread.sleep(12000);} catch (Exception e) {e.printStackTrace();}
+		coor.collect();
 		System.out.println("Done.");
+	}
+
+	private void collect() {
+		//		recieve result
+		for (int i=sqrt_m - 1; i >= 0; i--) {
+			for (int j = sqrt_m - 1; j >= 0; j--){
+				Node currentNode = nodeArray[i][j];
+				for(int c_i = currentNode.iStart; c_i <= currentNode.iEnd; c_i++)
+				{
+					for (int c_j = currentNode.jStart; c_j <= currentNode.jEnd; c_j++){
+						try {
+							c[c_i][c_j] = currentNode.disWorker.readInt();
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+					}
+				}
+			}
+		}
+
+		System.out.println("# Matrix c, the multiplcation of matrix A and B is collected by distributed system.");
+		MatrixMultiple.displayMatrix(c, 6);
+
+		int[][] nonDistributedC = MatrixMultiple.multiplyMatrix(a, b);
+		System.out.println("# Matrix c, the multiplcation of matrix A and B is calculated normally.");
+		MatrixMultiple.displayMatrix(nonDistributedC, 6);
+		System.out.println("-----------------------------------------");
+		System.out.println("Compare result between distributed multiplication and normal multiplication");
+		MatrixMultiple.compareMatrix(c, nonDistributedC);
+		System.out.println("-----------------------------------------");
 	}
 }
