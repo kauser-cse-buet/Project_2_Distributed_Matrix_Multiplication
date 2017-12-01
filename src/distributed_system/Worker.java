@@ -2,10 +2,11 @@ package distributed_system;
 
 import matrix.MatrixMultiple;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.InetAddress;
+import java.net.MalformedURLException;
+import java.net.Socket;
+import java.net.URL;
 
 public class Worker {
 
@@ -36,7 +37,7 @@ public class Worker {
 			DataIO dio = conn.connectIO(coorIP, coorPort);
 			dosCoor = dio.getDos();  
 			dosCoor.writeInt(nodeNum);
-			dosCoor.writeUTF(InetAddress.getLocalHost().getHostAddress());
+			dosCoor.writeUTF(getIp());
 			dosCoor.writeInt(localPort);
 			disCoor = dio.getDis();
 			m = disCoor.readInt(); 				//get matrix dimension from coordinator
@@ -131,10 +132,20 @@ public class Worker {
 		System.out.println("-----------------");
 
 		for(int k = 1; k <= dm - 1; k++){
+
+			// sending no of value in 1st column
+			try {
+				dosLeft.writeInt(m);
+				dosLeft.flush();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+
 			//		send 1st column to left node.
 			for(int i = 0; i < m; i++){
 				try {
 					dosLeft.writeInt(a[i][0]);
+					dosLeft.flush();
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
@@ -146,6 +157,14 @@ public class Worker {
 			System.out.println("--------------------------");
 
 			System.out.println("1st column send to left node");
+
+			try {
+				//recieve no of values in first column
+				int no_of_value_in_column = disRight.readInt();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+
 
 //			recieve last column from right node.
 			for(int i = 0; i < m; i++){
@@ -162,14 +181,33 @@ public class Worker {
 
 
 //		send first row to up
+			System.out.println("# Matrix B: Sending 1st row to up: ");
+
+
+			try {
+				// sending no of value in row
+				dosUp.writeInt(m);
+				dosUp.flush();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+
+
+
 			for(int i = 0; i < m; i++){
 				try {
+					System.out.print(b[0][i] + " ");
+
 					dosUp.writeInt(b[0][i]);
+					dosUp.flush();
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
 			}
+			System.out.println();
+			System.out.println("# Sent successfully.");
 
+			System.out.println("Matrix B:");
 			MatrixMultiple.displayMatrix(b);
 			System.out.println("-------------------------------------");
 
@@ -178,14 +216,28 @@ public class Worker {
 			MatrixMultiple.displayMatrix(b);
 			System.out.println("-------------------------------------");
 
+			System.out.println("# Matrix B: Recieving last row from down: ");
+
+
+			try {
+				// recieving no of value in row
+				int no_of_values_in_rows = disDown.readInt();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+
+
 //			recieve last row from down
 			for(int i = 0; i < m; i++){
 				try {
 					b[m - 1][i] = disDown.readInt();
+					System.out.print(b[m-1][i] + " ");
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
 			}
+			System.out.println("");
+			System.out.println("# recieved.");
 
 			System.out.println("Matrix B: Last row recieved from down.");
 			MatrixMultiple.displayMatrix(b);
@@ -209,6 +261,7 @@ public class Worker {
 			for(int j = 0; j < m; j++){
 				try {
 					dosCoor.writeInt(c[i][j]);
+					dosCoor.flush();
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
@@ -227,5 +280,38 @@ public class Worker {
 		worker.compute();
 		try {Thread.sleep(12000);} catch (Exception e) {e.printStackTrace();}
 		System.out.println("Done.");
+	}
+
+	String getIp(){
+		URL whatismyip = null;
+		try {
+			whatismyip = new URL("http://checkip.amazonaws.com");
+		} catch (MalformedURLException e) {
+			e.printStackTrace();
+		}
+		BufferedReader in = null;
+		try {
+			try {
+				in = new BufferedReader(new InputStreamReader(
+                        whatismyip.openStream()));
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			String ip = null;
+			try {
+				ip = in.readLine();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			return ip;
+		} finally {
+			if (in != null) {
+				try {
+					in.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
 	}
 }

@@ -55,7 +55,9 @@ public class Coordinator {
 					currentNode.dosWorker = dio.getDos(); 	//the stream to worker ID
 
 					currentNode.dosWorker.writeInt(m); 		//assign matrix dimension (m), where m = m/ sqrt(num of nodes)
+                    currentNode.dosWorker.flush();
 					currentNode.dosWorker.writeInt(dim); 		//assign actual matrix dimension (dm).
+                    currentNode.dosWorker.flush();
 				}
 			}
 			for (int i=0; i < sqrt_m; i++) {
@@ -64,22 +66,29 @@ public class Coordinator {
 
 					Node leftNode = Node.getLeftNode(nodeArray, i, j);
 					currentNode.dosWorker.writeUTF(leftNode.ip); 	// left worker's ip
+                    currentNode.dosWorker.flush();
 					currentNode.dosWorker.writeInt(leftNode.port);
+                    currentNode.dosWorker.flush();
 
 					Node rightNode = Node.getRightNode(nodeArray, i, j);
 
 					currentNode.dosWorker.writeUTF(rightNode.ip); 	// right worker's ip
+                    currentNode.dosWorker.flush();
 					currentNode.dosWorker.writeInt(rightNode.port);
-
+                    currentNode.dosWorker.flush();
 
 					Node upNode = Node.getUpNode(nodeArray, i, j);
 					currentNode.dosWorker.writeUTF(upNode.ip); 	// left worker's ip
+                    currentNode.dosWorker.flush();
 					currentNode.dosWorker.writeInt(upNode.port);
+                    currentNode.dosWorker.flush();
 
 					Node downNode = Node.getDownNode(nodeArray, i, j);
 
 					currentNode.dosWorker.writeUTF(downNode.ip); 	// right worker's ip
+                    currentNode.dosWorker.flush();
 					currentNode.dosWorker.writeInt(downNode.port);
+                    currentNode.dosWorker.flush();
 				}
 			}
 		} catch (IOException ioe) {
@@ -115,6 +124,7 @@ public class Coordinator {
 					for(int a_j = currentNode.jStart; a_j <= currentNode.jEnd; a_j++){
 						try {
 							currentNode.dosWorker.writeInt(aShiftedLeftIncreasingly[a_i][a_j]);
+                            currentNode.dosWorker.flush();
 						} catch (IOException ioe) {
 							System.out.println("error in distribute: " + i + ", " + j);
 							ioe.printStackTrace();
@@ -127,6 +137,7 @@ public class Coordinator {
 					for(int a_j = currentNode.jStart; a_j <= currentNode.jEnd; a_j++){
 						try {
 							currentNode.dosWorker.writeInt(bShiftedUpColumnIncreasingly[a_i][a_j]);
+                            currentNode.dosWorker.flush();
 						} catch (IOException ioe) {
 							System.out.println("error in distribute: " + i + ", " + j);
 							ioe.printStackTrace();
