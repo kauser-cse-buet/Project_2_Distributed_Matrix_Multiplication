@@ -12,6 +12,34 @@ public class MatrixMultiple {
 		}
 		return matrix; 
 	}
+
+	public static int[][] getOddMatrix(int n){
+		int[][] matrix = new int[n][n];
+
+		int oddNumber = 1;
+		for (int i = 0; i < n; i++){
+			for (int j = 0; j < n; j++){
+				matrix[i][j] = oddNumber;
+				oddNumber += 2;
+			}
+		}
+
+		return matrix;
+	}
+
+	public static int[][] getEvenMatrix(int n){
+		int[][] matrix = new int[n][n];
+
+		int evenNumber = 2;
+		for (int i = 0; i < n; i++){
+			for (int j = 0; j < n; j++){
+				matrix[i][j] = evenNumber;
+				evenNumber += 2;
+			}
+		}
+
+		return matrix;
+	}
 	
 	// create an n by n unit matrix  
 	public static int[][] createUnitMatrix(int n) {

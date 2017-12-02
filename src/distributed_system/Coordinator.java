@@ -80,14 +80,16 @@ public class Coordinator {
                     currentNode.dosWorker.flush();
 
 					Node upNode = Node.getUpNode(nodeArray, i, j);
-					currentNode.dosWorker.writeUTF(upNode.ip); 	// left worker's ip
+					currentNode.dosWorker.writeUTF(upNode.ip); 	// up worker's ip
                     currentNode.dosWorker.flush();
 					currentNode.dosWorker.writeInt(upNode.port);
                     currentNode.dosWorker.flush();
 
 					Node downNode = Node.getDownNode(nodeArray, i, j);
+					System.out.println("currentNode.coordinate" + currentNode.coordinate);
+					System.out.println("downnode.coordinate" + downNode.coordinate);
 
-					currentNode.dosWorker.writeUTF(downNode.ip); 	// right worker's ip
+					currentNode.dosWorker.writeUTF(downNode.ip); 	// down worker's ip
                     currentNode.dosWorker.flush();
 					currentNode.dosWorker.writeInt(downNode.port);
                     currentNode.dosWorker.flush();
@@ -100,8 +102,8 @@ public class Coordinator {
 	}
 	
 	void distribute(int numNodes) { 
-		a = MatrixMultiple.createDisplayMatrix(dim);
-		b = MatrixMultiple.createDisplayMatrix(dim);
+		a = MatrixMultiple.getOddMatrix(dim);
+		b = MatrixMultiple.getEvenMatrix(dim);
 
 		System.out.println("Matrix A: Before shift left");
 		MatrixMultiple.displayMatrix(a);
