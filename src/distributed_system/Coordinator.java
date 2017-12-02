@@ -58,6 +58,8 @@ public class Coordinator {
                     currentNode.dosWorker.flush();
 					currentNode.dosWorker.writeInt(dim); 		//assign actual matrix dimension (dm).
                     currentNode.dosWorker.flush();
+                    currentNode.dosWorker.writeInt(numNodes); 		//assign actual matrix dimension (dm).
+                    currentNode.dosWorker.flush();
 				}
 			}
 			for (int i=0; i < sqrt_m; i++) {
