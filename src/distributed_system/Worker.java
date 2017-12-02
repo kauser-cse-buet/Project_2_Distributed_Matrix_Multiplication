@@ -5,6 +5,9 @@ import matrix.MatrixMultiple;
 import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.charset.Charset;
+import java.util.Arrays;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class Worker {
 
@@ -70,18 +73,6 @@ public class Worker {
 
 			System.out.println("port down" + portDown);
 
-//			if (nodeNum%2==0) {		// Even # worker connecting manner
-//				dosLeft = conn.connect2write(ipLeft, portLeft);
-//				disRight = conn.accept2read();
-//				dosUp = conn.connect2write(ipUp, portUp);
-//				disDown = conn.accept2read();
-//			} else {				// Odd # worker connecting manner
-//				disRight = conn.accept2read();
-//				dosLeft = conn.connect2write(ipRight, portRight);
-//				disDown = conn.accept2read();
-//				dosUp = conn.connect2write(ipDown, portDown);
-//			}
-
             if (((nodeNum % workerArrayDim) % 2) == 0){
                 dosLeft = conn.connect2write(ipLeft, portLeft);
                 disRight = conn.accept2read();
@@ -107,61 +98,54 @@ public class Worker {
             System.out.println("dosUp: " + dosUp);
             System.out.println("disDown: " + disDown);
 
-//			if(nodeNum % 2 == 0){
-//				dosUp = conn.connect2write(ipUp, portUp);
-//				disDown = conn.accept2read();
-//			}
-//			else {				// Odd # worker connecting manner
-//				disDown = conn.accept2read();
-//				dosUp = conn.connect2write(ipDown, portDown);
-//			}
 		} catch (IOException ioe) {
 			ioe.printStackTrace();
 		} 
 		System.out.println("Configuration done."); 
 	}
 
-	void compute() {
-		// get the block from coordinator
-		// recieve matrix A
-		for (int i = 0; i < m; i++) {
-			for (int j = 0; j <m; j++) {
-				try {
-					a[i][j] = disCoor.readInt();
-				} catch (IOException ioe) {
-					System.out.println("error: " + i + ", " + j);
-					ioe.printStackTrace();
-				}
-			}
-		}
-		System.out.println("A: ");
-		MatrixMultiple.displayMatrix(a, matrixRowGap);
-		System.out.println("-----------------");
 
-		// recieve matrix B
-		for (int i = 0; i < m; i++) {
-			for (int j = 0; j <m; j++) {
-				try {
-					b[i][j] = disCoor.readInt();
-				} catch (IOException ioe) {
-					System.out.println("error: " + i + ", " + j);
-					ioe.printStackTrace();
-				}
-			}
-		}
-		System.out.println("B: ");
-		MatrixMultiple.displayMatrix(b, matrixRowGap);
-		System.out.println("-----------------");
+    void compute() throws Exception {
+        // get the block from coordinator
+        // recieve matrix A
+        for (int i = 0; i < m; i++) {
+            for (int j = 0; j <m; j++) {
+                try {
+                    a[i][j] = disCoor.readInt();
+                } catch (IOException ioe) {
+                    System.out.println("error: " + i + ", " + j);
+                    ioe.printStackTrace();
+                }
+            }
+        }
+        System.out.println("A: ");
+        MatrixMultiple.displayMatrix(a, matrixRowGap);
+        System.out.println("-----------------");
 
-		c = MatrixMultiple.multiplyMatrixCellWise(a, b);
-		System.out.println("Matrix c: ");
-		MatrixMultiple.displayMatrix(c, matrixRowGap);
-		System.out.println("-----------------");
+        // recieve matrix B
+        for (int i = 0; i < m; i++) {
+            for (int j = 0; j <m; j++) {
+                try {
+                    b[i][j] = disCoor.readInt();
+                } catch (IOException ioe) {
+                    System.out.println("error: " + i + ", " + j);
+                    ioe.printStackTrace();
+                }
+            }
+        }
+        System.out.println("B: ");
+        MatrixMultiple.displayMatrix(b, matrixRowGap);
+        System.out.println("-----------------");
 
-		for(int k = 1; k <= dm - 1; k++){
+        c = MatrixMultiple.multiplyMatrixCellWise(a, b);
+        System.out.println("Matrix c: ");
+        MatrixMultiple.displayMatrix(c, matrixRowGap);
+        System.out.println("-----------------");
 
-			// A:
-		    System.out.println("# Iteration number: " + k);
+        for(int k = 1; k <= dm - 1; k++){
+
+            // A:
+            System.out.println("# Iteration number: " + k);
 
             int []columnToSend = new int[m];
 
@@ -169,132 +153,141 @@ public class Worker {
                 columnToSend[i] = a[i][0];
             }
 
-			int[] columnRecieved = new int[m];
+            // B:
+            int[] rowToSend = new int[m];
 
-			// send A:
-			if (((nodeNum % workerArrayDim) % 2) == 0){
-				sendIntArray(columnToSend, dosLeft, m);
+            for(int i = 0; i < m; i++){
+                rowToSend[i] = b[0][i];
+            }
 
-				System.out.print("# Column send to left node.");
-				displayColumn(columnToSend);
+            int[] columnRecieved = new int[m];
+            int[] rowRecieved = new int[m];
 
-				columnRecieved = recieveIntArray(disRight, m);
-				System.out.println("A: recieve last column from right node.");
-				displayColumn(columnRecieved);
-			}
-			else{
-				columnRecieved = recieveIntArray(disRight, m);
-				System.out.println("A: recieve last column from right node.");
-				displayColumn(columnRecieved);
+            sendIntArray(columnToSend, dosLeft, m, MatrixName.A);
+            System.out.print("# Column send to left node.");
+            displayColumn(columnToSend);
+            sendIntArray(rowToSend, dosUp, m, MatrixName.B);
+            System.out.println("#B: Send 1st row to up.");
+            displayRow(rowToSend);
 
-				sendIntArray(columnToSend, dosLeft, m);
-				System.out.print("# Column send to left node.");
-				displayColumn(columnToSend);
-			}
+            WorkerMessage message1 = recieveMessage(disDown);
+            if (message1.matrixName == MatrixName.A.asChar()){
+                columnRecieved = message1.intArray;
+                System.out.println("A: recieve last column from right node.");
+                displayColumn(columnRecieved);
+            }
+            else if(message1.matrixName == MatrixName.B.asChar()){
+                rowRecieved = message1.intArray;
+                System.out.println("#B: Recieved last row from down: ");
+                displayRow(rowRecieved);
+            }
+            else {
+                throw new Exception("Nothing recieved");
+            }
 
-			a = MatrixMultiple.shiftLeftAllRowsBy1(a);
+            WorkerMessage message2 = recieveMessage(disRight);
 
-			System.out.println("A: Shifted left.");
-			MatrixMultiple.displayMatrix(a, matrixRowGap);
-			System.out.println("--------------------------");
+            if (message2.matrixName == MatrixName.A.asChar()){
+                columnRecieved = message2.intArray;
+                System.out.println("A: recieve last column from right node.");
+                displayColumn(columnRecieved);
+            }
+            else if(message2.matrixName == MatrixName.B.asChar()){
+                rowRecieved = message2.intArray;
+                System.out.println("#B: Recieved last row from down: ");
+                displayRow(rowRecieved);
+            }
+            else {
+                throw new Exception("Nothing recieved");
+            }
+
+            a = MatrixMultiple.shiftLeftAllRowsBy1(a);
+
+            System.out.println("A: Shifted left.");
+            MatrixMultiple.displayMatrix(a, matrixRowGap);
+            System.out.println("--------------------------");
 
 //			recieve last column from right node.
-			for(int i = 0; i < m; i++){
+            for(int i = 0; i < m; i++){
                 a[i][m - 1] = columnRecieved[i];
-			}
+            }
 
-			System.out.println("# A: ");
-			MatrixMultiple.displayMatrix(a, matrixRowGap);
-			System.out.println("------------------------------");
+            System.out.println("# A: ");
+            MatrixMultiple.displayMatrix(a, matrixRowGap);
+            System.out.println("------------------------------");
 
 //			B Matrix
 
 //		send first row to up
-			System.out.println("#B: Sending 1st row to up: ");
+            System.out.println("#B: Sending 1st row to up: ");
 
-            int[] rowToSend = new int[m];
 
-			for(int i = 0; i < m; i++){
-                rowToSend[i] = b[0][i];
-			}
+            System.out.println("B:");
+            MatrixMultiple.displayMatrix(b, matrixRowGap);
+            System.out.println("-------------------------------------");
 
-			int nodeRowNumber = (nodeNum / (int) (Math.sqrt(numNodes)));
-			System.out.println("# nodeRowNumber: " + nodeRowNumber);
-
-			int[] rowRecieved = new int[m];
-
-			if (nodeRowNumber % 2 == 0){
-				sendIntArray(rowToSend, dosUp, m);
-				System.out.println("#B: Send 1st row to up.");
-				displayRow(rowToSend);
-
-				//			recieve last row from down
-				rowRecieved = recieveIntArray(disDown, m);
-				System.out.println("#B: Recieved last row from down: ");
-				displayRow(rowRecieved);
-			}
-			else{
-				//			recieve last row from down
-				rowRecieved = recieveIntArray(disDown, m);
-				System.out.println("#B: Recieved last row from down: ");
-				displayRow(rowRecieved);
-
-				sendIntArray(rowToSend, dosUp, m);
-				System.out.println("#B: Send 1st row to up.");
-				displayRow(rowToSend);
-			}
-
-			System.out.println("B:");
-			MatrixMultiple.displayMatrix(b, matrixRowGap);
-			System.out.println("-------------------------------------");
-
-			b = MatrixMultiple.shiftUpAllColumnBy1(b);
-			System.out.println("B: Shift up all column by 1");
-			MatrixMultiple.displayMatrix(b, matrixRowGap);
-			System.out.println("-------------------------------------");
+            b = MatrixMultiple.shiftUpAllColumnBy1(b);
+            System.out.println("B: Shift up all column by 1");
+            MatrixMultiple.displayMatrix(b, matrixRowGap);
+            System.out.println("-------------------------------------");
 
 
 
-			for(int i = 0; i < m; i++){
+            for(int i = 0; i < m; i++){
                 b[m - 1][i] = rowRecieved[i];
-			}
+            }
 
 
-			System.out.println("B: Last row recieved from down.");
-			MatrixMultiple.displayMatrix(b, matrixRowGap);
-			System.out.println("------------------------------");
-
-			int[][] temp = MatrixMultiple.multiplyMatrixCellWise(a, b);
-			System.out.println("# A * B");
-			MatrixMultiple.displayMatrix(temp, matrixRowGap);
+            System.out.println("B: Last row recieved from down.");
+            MatrixMultiple.displayMatrix(b, matrixRowGap);
             System.out.println("------------------------------");
 
-			c = MatrixMultiple.addMatrixCellWise(c, temp);
-			System.out.println("Updated c, by c =  c + a * b .");
-			MatrixMultiple.displayMatrix(c, matrixRowGap);
-			System.out.println("------------------------------");
+            int[][] temp = MatrixMultiple.multiplyMatrixCellWise(a, b);
+            System.out.println("# A * B");
+            MatrixMultiple.displayMatrix(temp, matrixRowGap);
+            System.out.println("------------------------------");
+
+            c = MatrixMultiple.addMatrixCellWise(c, temp);
+            System.out.println("Updated c, by c =  c + a * b .");
+            MatrixMultiple.displayMatrix(c, matrixRowGap);
+            System.out.println("------------------------------");
 
             System.out.println("-------------------------# Iteration end.--------------------: " + k);
-		}
+        }
 
-		//			send result to coordinator
-		try {
-			Thread.sleep(1000);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
+        //			send result to coordinator
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
 
-		for (int i = 0; i < m; i++){
-			for(int j = 0; j < m; j++){
-				try {
-					dosCoor.writeInt(c[i][j]);
-					dosCoor.flush();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-		}
-	}
+        for (int i = 0; i < m; i++){
+            for(int j = 0; j < m; j++){
+                try {
+                    dosCoor.writeInt(c[i][j]);
+                    dosCoor.flush();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    private WorkerMessage recieveMessage(DataInputStream dis) {
+        int messageLength = 0;
+        WorkerMessage messageRecieved = null;
+        try {
+            messageLength = dis.readInt();
+            byte[] bytes = new byte[messageLength];
+            dis.read(bytes);
+            messageRecieved = new WorkerMessage(new String(bytes));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return messageRecieved;
+    }
 
     private void displayRow(int[] rowRecieved) {
         System.out.println("Row: ");
@@ -312,49 +305,35 @@ public class Worker {
         }
     }
 
-    private int[] recieveIntArray(DataInputStream dis, int m) {
-        int[] ints = new int[m];
+    private int[] recieveIntArray(DataInputStream dis, MatrixName m) {
+        WorkerMessage messageRecieved = null;
+        try {
+            do{
+                int messageLength = dis.readInt();
+                byte[] bytes = new byte[messageLength];
+                dis.read(bytes);
+                messageRecieved = new WorkerMessage(new String(bytes));
+            }while (messageRecieved.matrixName != m.asChar());
 
-	    try {
-            //recieve no of values in first column
-            int no_of_value_in_column = dis.readInt();
+//            return messageRecieved.intArray;
         } catch (IOException e) {
             e.printStackTrace();
         }
 
-//			recieve last column from right node.
-        for(int i = 0; i < m; i++){
-            try {
-                ints[i] = dis.readInt();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-        return ints;
+        return messageRecieved.intArray;
     }
 
-    private void sendIntArray(int[] ints, DataOutputStream dos, int m) {
-        // sending no of value in 1st column
-        try {
-            dos.writeInt(m);
-            dos.flush();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        //		send 1st column to left node.
-        for(int i = 0; i < m; i++){
-            try {
-                dos.writeInt(a[i][0]);
-
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+    private void sendIntArray(int[] ints, DataOutputStream dos, int m, MatrixName matrixName) {
+        WorkerMessage workerMessage = new WorkerMessage(matrixName, ints);
+        String workerMessageStr = workerMessage.toString();
 
         try {
+            int workerMessageLength = workerMessageStr.length();
+            dos.writeInt(workerMessageLength);
             dos.flush();
+            dos.write(workerMessageStr.getBytes(Charset.forName("UTF-8")));
+            dos.flush();
+
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -362,14 +341,18 @@ public class Worker {
 
     public static void main(String[] args) {
 		if (args.length != 4) {
-			System.out.println("usage: java Worker workerID worker-port-num coordinator-ip coordinator-port-num"); 
+			System.out.println("usage: java Worker workerID worker-port-num coordinator-ip coordinator-port-num");
 		} 
 		int workerID = Integer.parseInt(args[0]); 
 		int portNum = Integer.parseInt(args[1]);
 		Worker worker = new Worker(workerID, portNum);
 		worker.configurate(args[2], Integer.parseInt(args[3]));
-		worker.compute();
-		try {Thread.sleep(12000);} catch (Exception e) {e.printStackTrace();}
+        try {
+            worker.compute();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        try {Thread.sleep(12000);} catch (Exception e) {e.printStackTrace();}
 		System.out.println("Done.");
 	}
 
@@ -405,4 +388,53 @@ public class Worker {
 			}
 		}
 	}
+}
+
+
+class WorkerMessage {
+    char matrixName;
+    int[] intArray;
+
+    public WorkerMessage(MatrixName arrayName, int[] intArray){
+        this.matrixName = arrayName.asChar();
+        this.intArray = intArray;
+    }
+
+    public WorkerMessage(String message){
+        String[] messageSplittedArray = message.split(":");
+
+        if(messageSplittedArray.length == 2){
+            matrixName = messageSplittedArray[0].charAt(0);
+            intArray = parseStringToIntArray(messageSplittedArray[1]);
+        }
+    }
+
+    public int[] parseStringToIntArray(String intArrayStr){
+        String[] stringSplittedArray = intArrayStr.replace("[", "").replace("]", "").split(",");
+        int[] convertedIntArray = new int[stringSplittedArray.length];
+        for (int i = 0; i < stringSplittedArray.length; i++){
+            convertedIntArray[i] = Integer.parseInt(stringSplittedArray[i].trim());
+        }
+
+        return convertedIntArray;
+    }
+
+    @Override
+    public String toString() {
+        return matrixName + ":" + Arrays.toString(intArray);
+    }
+}
+
+enum MatrixName{
+    A('A'), B('B');
+
+    public char asChar() {
+        return asChar;
+    }
+
+    private final char asChar;
+
+    private MatrixName(char asChar) {
+        this.asChar = asChar;
+    }
 }
